@@ -1,0 +1,64 @@
+# ─────────────────────────────
+# 1. Libraries
+# ─────────────────────────────
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(janitor)   # clean_names()
+library(magrittr)  # %>% with "." placeholder
+
+# ─────────────────────────────
+# 2. Read + clean names
+# ─────────────────────────────
+csv_path <- ""
+
+df <- read_csv(csv_path, show_col_types = FALSE) %>% 
+  clean_names(replace = c("μ" = "u", "µ" = "u")) %>%                 # μ → u
+  rename_with(~ gsub("^area_mm2_", "area_um2_", .x),                 # mm2 → um2
+              starts_with("area_mm2_"))                              #
+
+# ─────────────────────────────
+# 3. Prep data  (images 1-10 only)
+# ─────────────────────────────
+metrics <- c("area_um2_mean", "elong_mean", "ecc_mean")
+
+df_long <- df %>%
+  filter(image_index <= 10) %>%
+  mutate(
+    image_index = as.integer(image_index),
+    cluster_id  = factor(cluster_id, levels = sort(unique(cluster_id)))
+  ) %>%
+  pivot_longer(all_of(metrics), names_to = "metric", values_to = "value") %>%
+  mutate(metric = factor(metric,
+                         levels = c("area_um2_mean","elong_mean","ecc_mean"),
+                         labels = c("Mean area (µm²)",
+                                    "Mean elongation",
+                                    "Mean eccentricity")))
+
+# ─────────────────────────────
+# 4. Plot – facet grid   (metric rows × image cols)
+# ─────────────────────────────
+p <- ggplot(df_long,
+            aes(x = cluster_id,
+                y = value,
+                group  = image_index,
+                colour = factor(image_index))) +
+  geom_line(linewidth = 0.9) +
+  geom_point(size = 2) +
+  facet_grid(metric ~ image_index, scales = "free_y") +
+  labs(
+    title    = "Cluster metrics across Images 1–10",
+    subtitle = "Rows: metric   ·   Columns: image index",
+    x        = "Cluster ID",
+    y        = NULL,
+    colour   = "Image Index"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    strip.text.y     = element_text(angle = 0, hjust = 0, face = "bold"),
+    strip.text.x     = element_text(face = "bold"),
+    panel.grid.minor = element_blank()
+  )
+
+print(p)
