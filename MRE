@@ -1,0 +1,49 @@
+# ─────────────────────────────
+# 1. Libraries
+# ─────────────────────────────
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+
+# ─────────────────────────────
+# 2. Read & clean names
+# ─────────────────────────────
+csv_path <- ""
+
+df <- read_csv(csv_path, show_col_types = FALSE) %>% 
+  rename_with(~ str_replace_all(.x, "[^[:alnum:]_]", "_"))   # safe names
+
+# ─────────────────────────────
+# 3. Convert types
+# ─────────────────────────────
+df <- df %>% 
+  mutate(
+    Image_Index = as.integer(Image_Index),
+    Cluster_ID  = factor(Cluster_ID)
+  )
+
+# ─────────────────────────────
+# 4. Keep the first 10 images
+# ─────────────────────────────
+df10 <- filter(df, Image_Index %in% 1:10)
+
+# ─────────────────────────────
+# 5. Plot N_cells vs Cluster, faceted by Image
+# ─────────────────────────────
+p_faceted <- ggplot(df10,
+                    aes(x = Cluster_ID,
+                        y = N_cells,
+                        group  = Image_Index,
+                        colour = factor(Image_Index))) +
+  geom_line(alpha = 0.7, linewidth = 0.8) +
+  geom_point(size = 2) +
+  facet_wrap(~ Image_Index, ncol = 4) +
+  labs(title  = "Number of Cells per Cluster (Images 1–10)",
+       x      = "Cluster ID",
+       y      = "N cells",
+       colour = "Image\nIndex") +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "right")
+
+print(p_faceted)
